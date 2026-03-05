@@ -52,7 +52,7 @@ reel_url = st.text_input(
 model_size = st.select_slider(
     "transcription quality",
     options=["tiny", "base", "small"],
-    value="base",
+    value="tiny",
     help="tiny = fastest (30s), base = balanced (1min), small = most accurate (2min)"
 )
 
