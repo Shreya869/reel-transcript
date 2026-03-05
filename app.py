@@ -66,6 +66,13 @@ if st.button("get transcript", type="primary", use_container_width=True):
                         "outtmpl": os.path.join(tmpdir, "audio.%(ext)s"),
                         "quiet": True,
                         "no_warnings": True,
+                        "http_headers": {
+                            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+                            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                            "Accept-Language": "en-US,en;q=0.5",
+                            "Accept-Encoding": "gzip, deflate, br",
+                            "Referer": "https://www.instagram.com/",
+                        },
                         "postprocessors": [{
                             "key": "FFmpegExtractAudio",
                             "preferredcodec": "mp3",
