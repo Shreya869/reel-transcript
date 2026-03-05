@@ -15,15 +15,6 @@ st.markdown("""
     .main { max-width: 700px; }
     h1 { font-size: 1.8rem; font-weight: 700; }
     .subtitle { color: #888; font-size: 0.95rem; margin-top: -10px; margin-bottom: 30px; }
-    .transcript-box {
-        background: #f9f9f9;
-        border-radius: 10px;
-        padding: 20px;
-        font-size: 1rem;
-        line-height: 1.7;
-        border: 1px solid #e0e0e0;
-        white-space: pre-wrap;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -129,7 +120,7 @@ if st.button("get transcript", type="primary", use_container_width=True):
             st.metric("language detected", detected_language)
 
         st.markdown("### transcript")
-        st.markdown(f'<div class="transcript-box">{transcript}</div>', unsafe_allow_html=True)
+        st.text_area("", transcript, height=300)
 
         st.markdown("---")
         st.download_button(
@@ -139,4 +130,3 @@ if st.button("get transcript", type="primary", use_container_width=True):
             mime="text/plain",
             use_container_width=True,
         )
-        st.text_area("or copy from here", transcript, height=200)
