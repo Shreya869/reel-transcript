@@ -1,10 +1,8 @@
 import streamlit as st
 import yt_dlp
-import whisper
 import os
 import tempfile
-import ssl
-ssl._create_default_https_context = ssl._create_unverified_context
+from groq import Groq
 
 st.set_page_config(
     page_title="reel transcript",
@@ -32,7 +30,17 @@ st.markdown("""
 st.markdown("# 🎙️ reel transcript")
 st.markdown('<p class="subtitle">paste any instagram reel link → get the transcript</p>', unsafe_allow_html=True)
 
-# tip for private reels
+
+def get_groq_client():
+    # check streamlit secrets first (for cloud deployment), then env, then nothing
+    api_key = st.secrets.get("GROQ_API_KEY", None) if hasattr(st, "secrets") else None
+    if not api_key:
+        api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        return None
+    return Groq(api_key=api_key)
+
+
 with st.expander("💡 tip: if it fails on a private reel"):
     st.markdown("""
     instagram blocks downloads on private accounts. if that happens:
@@ -49,17 +57,15 @@ reel_url = st.text_input(
     placeholder="https://www.instagram.com/reel/abc123/",
 )
 
-model_size = st.select_slider(
-    "transcription quality",
-    options=["tiny", "base", "small"],
-    value="tiny",
-    help="tiny = fastest (30s), base = balanced (1min), small = most accurate (2min)"
-)
-
 if st.button("get transcript", type="primary", use_container_width=True):
     if not reel_url.strip():
         st.error("please paste a reel url first")
     else:
+        client = get_groq_client()
+        if not client:
+            st.error("groq api key not configured. contact the app owner.")
+            st.stop()
+
         with tempfile.TemporaryDirectory() as tmpdir:
             # step 1: download
             with st.status("downloading reel...") as status:
@@ -85,27 +91,30 @@ if st.button("get transcript", type="primary", use_container_width=True):
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         ydl.download([reel_url.strip()])
 
+                    # find the downloaded audio file
                     audio_path = os.path.join(tmpdir, "audio.mp3")
                     if not os.path.exists(audio_path):
-                        # find whatever audio file was downloaded
-                        files = os.listdir(tmpdir)
-                        audio_files = [f for f in files if f.startswith("audio")]
-                        if not audio_files:
-                            raise Exception("no audio file downloaded — the reel may be private or the url is wrong")
-                        audio_path = os.path.join(tmpdir, audio_files[0])
+                        files = [f for f in os.listdir(tmpdir) if f.startswith("audio")]
+                        if not files:
+                            raise Exception("no audio downloaded — reel may be private or url is wrong")
+                        audio_path = os.path.join(tmpdir, files[0])
 
                     status.update(label="download complete ✓", state="complete")
                 except Exception as e:
                     st.error(f"download failed: {e}")
                     st.stop()
 
-            # step 2: transcribe
-            with st.status(f"transcribing with whisper ({model_size})...") as status:
+            # step 2: transcribe via groq
+            with st.status("transcribing...") as status:
                 try:
-                    model = whisper.load_model(model_size)
-                    result = model.transcribe(audio_path, fp16=False)
-                    transcript = result["text"].strip()
-                    detected_language = result.get("language", "unknown")
+                    with open(audio_path, "rb") as audio_file:
+                        transcription = client.audio.transcriptions.create(
+                            file=(os.path.basename(audio_path), audio_file.read()),
+                            model="whisper-large-v3",
+                            response_format="verbose_json",
+                        )
+                    transcript = transcription.text.strip()
+                    detected_language = getattr(transcription, "language", "unknown")
                     status.update(label="transcription complete ✓", state="complete")
                 except Exception as e:
                     st.error(f"transcription failed: {e}")
@@ -130,6 +139,4 @@ if st.button("get transcript", type="primary", use_container_width=True):
             mime="text/plain",
             use_container_width=True,
         )
-
-        # copy helper
         st.text_area("or copy from here", transcript, height=200)
